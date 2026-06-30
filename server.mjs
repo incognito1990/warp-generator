@@ -131,14 +131,12 @@ async function handleGenerate(body) {
     throw Object.assign(new Error(`Failed to generate I1 for the given SNI: ${error.message}`), { status: 400 });
   }
 
-  const defaultPort = DEFAULT_ENDPOINT.split(':').pop();
   let endpointInfo;
   try {
     endpointInfo = resolveEndpoint({
       endpointMode: (body.endpointMode || 'default').trim(),
       body,
       peer,
-      defaultPort,
     });
   } catch (error) {
     throw Object.assign(error, { status: 400 });

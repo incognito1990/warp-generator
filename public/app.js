@@ -109,7 +109,7 @@ const NAT64_PREFIXES = {
 
 function updateNat64Preview() {
   const prefix = NAT64_PREFIXES[$('nat64-country').value] || '';
-  const raw = $('endpoint-nat64-ipv4').value.trim() || '162.159.193.1:2408';
+  const raw = $('endpoint-nat64-ipv4').value.trim() || '162.159.192.7:2408';
   const [ipv4, port = '2408'] = raw.split(':');
   const valid = /^\d{1,3}(\.\d{1,3}){3}$/.test(ipv4 || '');
   $('nat64-preview-val').textContent = valid
