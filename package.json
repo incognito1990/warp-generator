@@ -1,0 +1,21 @@
+{
+  "name": "warp-amnezia-generator",
+  "version": "1.0.0",
+  "description": "WARP AmneziaWG config generator — consumer WARP and optional Zero Trust",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "keywords": [
+    "warp",
+    "amneziawg",
+    "wireguard",
+    "cloudflare"
+  ],
+  "license": "MIT"
+}

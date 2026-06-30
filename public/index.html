@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WARP AmneziaWG — config generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Onest:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">config generator</div>
+      <h1>WARP · AmneziaWG</h1>
+      <p class="subtitle">
+        Generate a ready-to-use AmneziaWG config with optional obfuscation.
+        Keys are created on the fly for each request — nothing is stored on the server.
+      </p>
+      <div class="clients">
+        <span>AmneziaWG clients:</span>
+        <a href="https://github.com/amnezia-vpn/amneziawg-windows-client/releases" target="_blank" rel="noopener">Windows</a>
+        <a href="https://apps.apple.com/app/amneziawg/id6478942365" target="_blank" rel="noopener">macOS</a>
+        <a href="https://github.com/amnezia-vpn/amneziawg-tools" target="_blank" rel="noopener">Linux</a>
+        <a href="https://play.google.com/store/apps/details?id=org.amnezia.awg" target="_blank" rel="noopener">Android</a>
+        <a href="https://apps.apple.com/app/amneziawg/id6478942365" target="_blank" rel="noopener">iOS</a>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="step-label">step 1 — mode</div>
+
+      <div class="field">
+        <label class="toggle-row">
+          <input type="checkbox" id="zero-trust-toggle">
+          <span>Enable Zero Trust</span>
+          <span class="hint">— corporate WARP via Cloudflare Access (off = free consumer WARP)</span>
+        </label>
+      </div>
+
+      <div id="zero-trust-panel" class="hidden">
+        <div class="note info">
+          <span>ℹ</span>
+          <span>Zero Trust requires a JWT from your organization's Cloudflare Access portal. Use email OTP or paste a token manually.</span>
+        </div>
+
+        <div class="field auth-method">
+          <label>Authentication method</label>
+          <div class="seg" id="auth-method-seg">
+            <button type="button" class="active" data-auth="portal">Portal + email</button>
+            <button type="button" data-auth="token">JWT token</button>
+          </div>
+        </div>
+
+        <div id="auth-portal">
+          <div class="field">
+            <label>Portal URL <span class="hint">— your Access WARP enrollment page</span></label>
+            <input type="text" id="portal-url" placeholder="https://your-org.cloudflareaccess.com/warp" autocomplete="url">
+          </div>
+          <div class="field">
+            <label>Email <span class="hint">— must be allowed by your Access policy</span></label>
+            <div class="otp-row">
+              <input type="text" id="otp-email" placeholder="you@company.com" autocomplete="email">
+              <button type="button" class="otp-btn" id="otp-send">Send code</button>
+            </div>
+            <div class="otp-row hidden" id="otp-code-row">
+              <input type="text" id="otp-code" placeholder="6-digit code" inputmode="numeric" maxlength="6">
+              <button type="button" class="otp-btn" id="otp-verify">Get token</button>
+            </div>
+            <div class="note ok hidden" id="otp-status"></div>
+          </div>
+        </div>
+
+        <div id="auth-token" class="hidden">
+          <div class="field">
+            <label>JWT token <span class="hint">— paste manually from the portal</span></label>
+            <textarea id="token" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+            <div class="note warn">
+              <span>⚠</span>
+              <span>
+                Tokens expire in about one minute. On the portal page open DevTools → Console and run:
+                <code>console.log(document.querySelector("meta[http-equiv='refresh']").content.split("=")[2])</code>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="consumer-note" class="note ok">
+        <span>✓</span>
+        <span>Consumer mode: no login required. The server registers a free WARP device with Cloudflare automatically.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step-label">step 2 — DNS</div>
+      <div class="field">
+        <label>DNS servers</label>
+        <input type="text" id="dns" value="1.1.1.1, 2606:4700:4700::1111, 1.0.0.1, 2606:4700:4700::1001">
+        <div class="note info">
+          <span>ℹ</span>
+          <span>Cloudflare DNS is used by default. Change only if you need custom resolvers.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step-label">step 3 — routing (AllowedIPs)</div>
+      <div class="seg" id="routing-mode-seg">
+        <button type="button" class="active" data-mode="all">All traffic</button>
+        <button type="button" data-mode="split">Split tunnel</button>
+      </div>
+
+      <div id="mode-all">
+        <p style="font-size:13px;color:var(--muted)">
+          All traffic goes through the VPN: <code>0.0.0.0/0</code> and <code>::/0</code> (when IPv6 is enabled).
+        </p>
+      </div>
+
+      <div id="mode-split" class="hidden">
+        <div class="field">
+          <label>Include subnets <span class="hint">— routed through the VPN</span></label>
+          <input type="text" id="include-custom" placeholder="10.0.0.0/8, 172.16.0.0/12">
+        </div>
+        <div class="field">
+          <label>Exclude subnets <span class="hint">— kept off the VPN (e.g. LAN)</span></label>
+          <input type="text" id="exclude-custom" placeholder="192.168.1.0/24, 10.0.0.5/32">
+        </div>
+        <div id="v6-split-fields">
+          <div class="field">
+            <label>IPv6 include <span class="hint">— default <code>::/0</code></span></label>
+            <input type="text" id="include-v6" value="::/0">
+          </div>
+          <div class="field">
+            <label>IPv6 exclude</label>
+            <input type="text" id="exclude-v6" placeholder="fd00::/8">
+          </div>
+        </div>
+        <div class="preview" id="calc-preview">Enter subnets to preview AllowedIPs…</div>
+      </div>
+
+      <div class="field" style="margin-top:18px;margin-bottom:0">
+        <label class="toggle-row">
+          <input type="checkbox" id="ipv6-toggle" checked>
+          <span>Route IPv6 traffic through VPN</span>
+          <span class="hint">— adds <code>::/0</code> to AllowedIPs</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="step-label">step 4 — advanced <span style="text-transform:none;letter-spacing:0;color:var(--muted)">(optional)</span></div>
+
+      <div class="field">
+        <label>Device label <span class="hint">— e.g. laptop, phone (optional)</span></label>
+        <input type="text" id="device-name" placeholder="laptop" maxlength="32">
+        <div class="name-preview">Device will be named: <code id="name-preview-val">warp-‹xxxxx›</code></div>
+      </div>
+
+      <div class="field">
+        <label class="toggle-row">
+          <input type="checkbox" id="obfuscation-toggle" checked>
+          <span>Enable AmneziaWG obfuscation</span>
+          <span class="hint">— Jc/Jmin/Jmax, S1–S4, H1–H4, I1</span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label>Endpoint <span class="hint">— how to reach the Cloudflare peer</span></label>
+        <div class="seg" id="endpoint-mode-seg">
+          <button type="button" class="active" data-epmode="default">Default</button>
+          <button type="button" data-epmode="ipv6">IPv6</button>
+          <button type="button" data-epmode="nat64">NAT64</button>
+        </div>
+        <div id="endpoint-default" style="margin-top:10px">
+          <input type="text" id="endpoint" placeholder="162.159.193.1:2408">
+        </div>
+        <div id="endpoint-ipv6" class="hidden" style="margin-top:10px">
+          <p style="font-size:13px;color:var(--muted);margin:0">
+            Uses the IPv6 endpoint Cloudflare assigns to this peer.
+          </p>
+        </div>
+        <div id="endpoint-nat64" class="hidden" style="margin-top:10px">
+          <label style="font-size:13px">NAT64 prefix</label>
+          <select id="nat64-country">
+            <option value="CH">CH — 2a14:7583:f764:64::/96</option>
+            <option value="DE">DE — 2001:67c:2960:6464::/96</option>
+            <option value="NL">NL — 2a02:898:146:64::/96</option>
+            <option value="FI">FI — 2001:67c:2b0:db32::/96</option>
+            <option value="US1">US — 2602:fc59:11:64::/96</option>
+            <option value="US2">US — 2602:fc59:b0:64::/96</option>
+            <option value="HK">HK — 2600:70ff:ac2c:64::/96</option>
+          </select>
+          <input type="text" id="endpoint-nat64-ipv4" placeholder="162.159.193.1:2408" style="margin-top:8px">
+          <div class="name-preview">Endpoint will be: <code id="nat64-preview-val">[2a14:7583:f764:64::162.159.193.1]:2408</code></div>
+        </div>
+      </div>
+
+      <div class="field" id="sni-field">
+        <label>Custom SNI domain <span class="hint">— leave empty for the proven default I1 packet</span></label>
+        <input type="text" id="sni" placeholder="example.com">
+        <div class="note info" style="margin-top:10px">
+          <span>ℹ</span>
+          <span>Change this only if you know why. A custom domain generates a fresh QUIC Initial packet with that SNI.</span>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="btn" id="gen">Generate config</button>
+    <div class="err" id="err"></div>
+
+    <div class="result card" id="result" style="margin-top:20px">
+      <div class="step-label">your config</div>
+      <div class="config-box">
+        <pre id="config-out"></pre>
+      </div>
+      <div class="actions">
+        <button type="button" id="copy">Copy</button>
+        <button type="button" id="download">Download .conf</button>
+        <button type="button" id="qrbtn">Show QR</button>
+        <button type="button" id="deeplink">Deep link</button>
+      </div>
+      <div id="qrwrap" class="hidden" style="margin-top:16px;text-align:center">
+        <div id="qrcode" style="display:inline-block;background:#fff;padding:14px;border-radius:10px"></div>
+        <div class="note warn hidden" id="qrnote" style="margin-top:12px;text-align:left">
+          <span>⚠</span>
+          <span id="qrnote-text">
+            With default obfuscation the config is large and the QR code may be hard to scan.
+            Use Download .conf or set a short custom SNI to shrink I1.
+          </span>
+        </div>
+      </div>
+      <div class="note info">
+        <span>ℹ</span>
+        <span>Import into <b>AmneziaWG</b> (not the regular Amnezia VPN app).</span>
+      </div>
+      <div class="revoke-row">
+        <button type="button" id="revoke-btn" class="revoke-btn">Revoke this device</button>
+        <span id="revoke-status" class="revoke-status"></span>
+      </div>
+    </div>
+
+    <footer class="credits">
+      <div>
+        Based on:
+        <a href="https://gitlab.com/fscarmen/warp" target="_blank" rel="noopener">warp.sh</a> ·
+        <a href="https://github.com/rany2/warp.sh" target="_blank" rel="noopener">rany2/warp.sh</a> ·
+        <a href="https://github.com/warp-generator/warp-generator.github.io" target="_blank" rel="noopener">warp-generator</a> ·
+        <a href="https://github.com/ImMALWARE/bash-warp-generator" target="_blank" rel="noopener">ImMALWARE/bash-warp-generator</a> ·
+        <a href="https://www.procustodibus.com/blog/2021/03/wireguard-allowedips-calculator/" target="_blank" rel="noopener">AllowedIPs calculator</a>
+      </div>
+      <div>
+        Crypto:
+        <a href="https://www.rfc-editor.org/rfc/rfc7748" target="_blank" rel="noopener">RFC 7748</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc9001" target="_blank" rel="noopener">RFC 9001</a> ·
+        <a href="https://github.com/davidshimjs/qrcodejs" target="_blank" rel="noopener">qrcodejs</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
