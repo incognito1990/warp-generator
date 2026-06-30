@@ -48,11 +48,24 @@ function jsonResponse(body, status = 200) {
   });
 }
 
-async function readJson(request) {
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+async function readJson(req) {
+  const text = await readBody(req);
+  if (!text.trim()) {
+    throw Object.assign(new Error('Empty request body.'), { status: 400 });
+  }
   try {
-    return await request.json();
+    return JSON.parse(text);
   } catch {
-    throw new Error('Invalid JSON body.');
+    throw Object.assign(new Error('Invalid JSON body.'), { status: 400 });
   }
 }
 
